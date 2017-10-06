@@ -60,6 +60,8 @@ public class Polyline extends GeometricObject implements Drawable {
 
 	/**
 	 * Set points
+	 * 
+	 * @param points the list of the points
 	 */
 	public void setPoints(ArrayList<Point> points) {
 		this.points = points;

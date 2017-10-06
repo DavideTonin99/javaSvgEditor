@@ -14,11 +14,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import filemanager.FileManager;
-import geometricobjects.Circle;
-import geometricobjects.GeometricObject;
-import geometricobjects.Line;
-import geometricobjects.Point;
-import geometricobjects.Polyline;
+import geometricobjects.*;
 import java.awt.Container;
 
 /**
@@ -50,7 +46,7 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
      * @param parent The parent object (JFrame)
      */
     public SvgEditorPanel(SvgEditor parent) {
-        shape = "Geometric Object";
+        shape = "Geometric Object"; // Default shape
         currentColor = Color.RED;
         currentDrawingStroke = 2;
 
@@ -92,17 +88,14 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
      */
     public void setShape(String shape) {
         shape = shape.toLowerCase();
+        // Check if the shape to set is valid
         if (shape.equals(POINT) || shape.equals(LINE) || shape.equals(CIRCLE) || shape.equals(POLYLINE)
                 || shape.equals(MIXEDLINE)) {
-            if (this.shape.equals(POLYLINE) || this.shape.equals(MIXEDLINE)) {
-                terminateObject(POLYLINE);
+        	// If the previous shape was polyline or mixedline or line or circle, ends it
+            if (this.shape.equals(POLYLINE) || this.shape.equals(MIXEDLINE) || this.shape.equals(LINE) || this.shape.equals(CIRCLE)) {
+                endLastFigure();
                 repaint();
-            } else if (this.shape.equals(LINE)) {
-                terminateObject(LINE);
-                repaint();
-            } else if (this.shape.equals(CIRCLE)) {
-                terminateObject(CIRCLE);
-                repaint();
+                // if the previous shape was line, ends it
             }
             this.shape = shape;
         } else {
@@ -148,23 +141,25 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
      *
      * @param xSource x coordinate
      * @param ySource y coordinate
+     * @param toEnd true if the line could be ended
      */
-    public void addLine(int xSource, int ySource) {
+    public void manageLine(int xSource, int ySource, boolean toEnd) {
         if (!lines.isEmpty()) {
-            // Controllo se l'ultima linea è completa
+        	// Check if the last line is complete
             if ((lines.get(lines.size() - 1)).isComplete()) {
+            	// If the last line is complete, it creates a new one with only the first point
                 Line line = new Line(new Point(xSource, ySource));
                 line.setColor(currentColor);
                 lines.add(line);
             } else {
-                // Se manca un punto all'ultima linea la completo
+            	// If the last line isn't complete, it adds the second point
                 Line line = lines.get(lines.size() - 1);
                 line.setP2(new Point(xSource, ySource));
-                line.setComplete(true);
+                if (toEnd) line.setComplete(true);
                 lines.set(lines.size() - 1, line);
             }
         } else {
-            // Se non ci sono ancora linee, ne creo una nuova
+        	// If there aren't lines yet, it creates one
             Line line = new Line(new Point(xSource, ySource));
             line.setColor(currentColor);
             lines.add(line);
@@ -176,20 +171,23 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
      *
      * @param xSource the x coordinate of the center
      * @param ySource the y coordinate of the center
+     * @param toEnd true if the circle could be ended
      */
-    public void addCircle(int xSource, int ySource) {
+    public void manageCircle(int xSource, int ySource, boolean toEnd) {
         if (circles.isEmpty() || circles.get(circles.size() - 1).isComplete()) {
+        	// If there aren't circles yet or if the last circle is complete, it creates new one
             Circle circle = new Circle(new Point(xSource, ySource));
             int radius = calculateCircleRadius(circle, xSource, ySource);
             circle.setRadius(radius);
             circle.setColor(currentColor);
-            circles.add(circle);
+            circles.add(circle);            
         } else if (!circles.isEmpty() || !circles.get(circles.size() - 1).isComplete()) {
+        	// If there are already circles or the last circle isn't complete, ends it
             Circle circle = circles.get(circles.size() - 1);
             int radius = calculateCircleRadius(circle, xSource, ySource);
             circle.setRadius(radius);
             circle.setColor(currentColor);
-            circle.setComplete(true);
+            if (toEnd) circle.setComplete(true);
             circles.set(circles.size() - 1, circle);
         }
     }
@@ -216,7 +214,8 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
      * @param xSource x coordinate of the mouse
      * @param ySource y coordinate of the mouse
      */
-    public void addPolyline(int xSource, int ySource) {
+    public void managePolyline(int xSource, int ySource) {
+    	// If there are already some polylines and the last isn't complete, adds new point to it
         if (!polylines.isEmpty() && !polylines.get(polylines.size() - 1).isComplete()) {
             Polyline pol = polylines.get(polylines.size() - 1);
             pol.addPoint(new Point(xSource, ySource, currentColor));
@@ -231,31 +230,32 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
     }
 
     /**
-     * Terminate current drawing form
-     *
-     * @param type the type of the form selected
+     * Ends current drawing form
      */
-    public void terminateObject(String type) {
-        if (type.toLowerCase().equals(LINE)) {
+    public void endLastFigure() {
+        if (this.shape.toLowerCase().equals(LINE)) {
             if (!lines.isEmpty() && !lines.get(lines.size() - 1).isComplete()) {
+            	// If the last line isn't complete, deletes it
                 lines.remove(lines.size() - 1);
             }
-        } else if (type.toLowerCase().equals(CIRCLE)) {
+        } else if (this.shape.toLowerCase().equals(CIRCLE)) {
             if (!circles.isEmpty() && !circles.get(circles.size() - 1).isComplete()) {
-                circles.remove(circles.size() - 1);
+            	// If the last circle isn't complete, deletes it
+            	circles.remove(circles.size() - 1);
             }
-        } else if (type.toLowerCase().equals(POLYLINE) || type.toLowerCase().equals(MIXEDLINE)) {
+        } else if (this.shape.toLowerCase().equals(POLYLINE) || this.shape.toLowerCase().equals(MIXEDLINE)) {        	
             if (!polylines.isEmpty() && !polylines.get(polylines.size() - 1).isComplete()) {
+            	// If the last polyline or mixedline isn't complete, ends it
                 Polyline pol = polylines.get(polylines.size() - 1);
                 pol.setComplete(true);
-                pol.removeLast();
+                pol.removeLast(); // remove the last point because it was provisional
                 polylines.set(polylines.size() - 1, pol);
             }
         }
     }
 
     /**
-     *
+     * Read figures to draw from file
      */
     public void read(String filename) {
         FileManager fm = new FileManager();
@@ -272,14 +272,11 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
                 System.out.println(type);
                 if (go instanceof Point) {
                     points.add((Point) go);
-                    System.out.println("Ho aggiunto un punto");
                 } else if (go instanceof Polyline) {
                     polylines.add((Polyline) go);
                 } else if (go instanceof Circle) {
                     circles.add((Circle) go);
-                    System.out.println("Ho aggiunto un cerchio");
                 } else if (go instanceof Line) {
-                    System.out.println("Ho aggiunto una linea");
                     lines.add((Line) go);
                 }
             }
@@ -288,7 +285,7 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
     }
 
     /**
-     * Write drawed objects on file
+     * Write drawed figures on file
      *
      * @param filename
      */
@@ -334,21 +331,23 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
         } else if (shape.equals(LINE)) {
             // right click to delete the current line
             if (SwingUtilities.isRightMouseButton(e)) {
-                terminateObject(LINE);
+                endLastFigure();
             } else {
-                addLine(xSource, ySource);
+                manageLine(xSource, ySource, true);
             }
         } else if (shape.equals(CIRCLE)) {
+        	// right click to delete the current circle
             if (SwingUtilities.isRightMouseButton(e)) {
-                terminateObject(CIRCLE);
+                endLastFigure();
             } else {
-                addCircle(xSource, ySource);
+                manageCircle(xSource, ySource, true);
             }
         } else if (shape.equals(POLYLINE) || shape.equals(MIXEDLINE)) {
-            if (!SwingUtilities.isRightMouseButton(e)) {
-                addPolyline(xSource, ySource);
+        	// right click to delete the last point (the provisional point) and end the polyline
+            if (SwingUtilities.isRightMouseButton(e)) {
+                endLastFigure();
             } else {
-                terminateObject(POLYLINE);
+                managePolyline(xSource, ySource);
             }
         }
         repaint();
@@ -356,25 +355,22 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
 
     @Override
     public void mousePressed(MouseEvent e) {
-        // TODO Auto-generated method stub
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
         if (this.shape.equals(MIXEDLINE)) {
-            terminateObject(MIXEDLINE);
+            endLastFigure();
         }
 
     }
 
     @Override
     public void mouseEntered(MouseEvent e) {
-        // TODO Auto-generated method stub
     }
 
     @Override
     public void mouseExited(MouseEvent e) {
-        // TODO Auto-generated method stub
     }
 
     @Override
@@ -388,23 +384,21 @@ public class SvgEditorPanel extends Container implements MouseListener, MouseMot
     public void mouseMoved(MouseEvent e) {
         if (this.shape.equals(LINE)) {
             if (!lines.isEmpty() && !(lines.get(lines.size() - 1).isComplete())) {
-                Line line = new Line(lines.get(lines.size() - 1).getP1(), new Point(e.getX(), e.getY()));
-                line.setColor(currentColor);
-                lines.set(lines.size() - 1, line);
+            	manageLine(e.getX(), e.getY(), false);            
+            	repaint();
             }
-            repaint();
+            
         } else if (this.shape.equals(CIRCLE)) {
-            if (!circles.isEmpty() && !(circles.get(circles.size() - 1).isComplete())) {
-                Circle circle = circles.get(circles.size() - 1);
-                int radius = calculateCircleRadius(circle, e.getX(), e.getY());
-                circle.setRadius(radius);
-                circles.set(circles.size() - 1, circle);
-            }
-            repaint();
+        	if (!circles.isEmpty() && !(circles.get(circles.size() - 1).isComplete())) {
+        		manageCircle(e.getX(), e.getY(), false);
+                repaint();
+        	}
         } else if (this.shape.equals(POLYLINE) || this.shape.equals(MIXEDLINE)) {
             if (!polylines.isEmpty() && !(polylines.get(polylines.size() - 1).isComplete())) {
+            	// If the last polyline isn't complete, continues it
                 Polyline pol = polylines.get(polylines.size() - 1);
                 ArrayList<Point> points = pol.getPoints();
+                // Change the last point with the current provisional
                 points.set(points.size() - 1, new Point(e.getX(), e.getY()));
                 pol.setPoints(points);
                 polylines.set(polylines.size() - 1, pol);
